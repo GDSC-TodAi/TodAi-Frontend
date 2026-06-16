@@ -243,6 +243,15 @@ maldonmu/
 │
 └── README.md
 ```
+todai/
+├── apps/
+│   ├── admin/      사회복지사용 관리 대시보드 (Next.js, :3000)
+│   └── user/       어르신용 말동무 앱 "토닥" (Next.js PWA, :3001)
+└── packages/
+    └── api/        @todai/api — 백엔드 API 타입 · fetch 클라이언트 (앱 공유)
+```
+
+## 시작하기
 
 ---
 

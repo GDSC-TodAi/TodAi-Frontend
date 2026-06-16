@@ -456,7 +456,9 @@ export default function MembersPage() {
 
   const filters: FilterType[] = ["전체", "대화 필요", "주의", "정상"];
 
-  const sourceMembers = apiMembers ?? members;
+  // 로딩 중에는 Mock 명단을 잠깐 보여주지 않고 API 데이터만 사용한다.
+  // (API 실패 시에만 폴백으로 Mock 명단을 노출)
+  const sourceMembers = apiMembers ?? (error ? members : []);
   const filteredMembers = sourceMembers
     .filter((m) => {
       if (activeFilter === "전체") return true;

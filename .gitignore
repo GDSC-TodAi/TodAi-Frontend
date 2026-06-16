@@ -39,3 +39,14 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# --- 모노레포(apps/*, packages/*) ---
+# 위 패턴들은 루트(/...)에만 적용되므로, 하위 워크스페이스용으로 경로 무관 패턴 추가
+node_modules/
+.next/
+out/
+build/
+coverage/
+.turbo/
+.vercel/
+*.local

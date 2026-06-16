@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { fetchElders, type ApiElder } from "@todai/api";
 
 type AppStatus = "완료" | "미설치";
 type ActiveStatus = "활성" | "비활성";
@@ -18,52 +19,50 @@ interface RosterUser {
   activeStatus: ActiveStatus;
 }
 
-const ROSTER: RosterUser[] = [
-  {
-    id: 1,
-    name: "홍길동",
-    initial: "홍",
-    avatarColor: "bg-blue-100 text-blue-700",
-    age: 58,
-    phone: "010-1111-2222",
-    registeredAt: "2025.03.10",
-    appStatus: "완료",
-    activeStatus: "활성",
-  },
-  {
-    id: 2,
-    name: "김순자",
-    initial: "김",
-    avatarColor: "bg-blue-100 text-blue-700",
-    age: 82,
-    phone: "010-3333-4444",
-    registeredAt: "2025.03.15",
-    appStatus: "완료",
-    activeStatus: "활성",
-  },
-  {
-    id: 3,
-    name: "이정수",
-    initial: "이",
-    avatarColor: "bg-amber-100 text-amber-700",
-    age: 75,
-    phone: "010-5555-6666",
-    registeredAt: "2025.04.02",
-    appStatus: "미설치",
-    activeStatus: "활성",
-  },
-  {
-    id: 4,
-    name: "박명자",
-    initial: "박",
-    avatarColor: "bg-blue-100 text-blue-700",
-    age: 67,
-    phone: "010-7777-8888",
-    registeredAt: "2025.04.20",
-    appStatus: "완료",
-    activeStatus: "활성",
-  },
+const AVATAR_COLORS = [
+  "bg-blue-100 text-blue-700",
+  "bg-amber-100 text-amber-700",
+  "bg-green-100 text-green-700",
+  "bg-purple-100 text-purple-700",
+  "bg-pink-100 text-pink-700",
 ];
+
+// API에 없는 정보(전화번호·등록일·앱 상태·활성 상태)는 elder_id 기반의 Mock 데이터로 채운다.
+function mockPhone(id: number): string {
+  const mid = String(1000 + (id * 37) % 9000);
+  const last = String(1000 + (id * 53) % 9000);
+  return `010-${mid}-${last}`;
+}
+
+function mockRegisteredAt(id: number): string {
+  const month = ((id * 7) % 12) + 1;
+  const day = ((id * 13) % 28) + 1;
+  return `2025.${String(month).padStart(2, "0")}.${String(day).padStart(2, "0")}`;
+}
+
+function mockAppStatus(id: number): AppStatus {
+  // 비활성/일부 사용자는 미설치로 표기
+  return id % 3 === 0 ? "미설치" : "완료";
+}
+
+function mockActiveStatus(elder: ApiElder): ActiveStatus {
+  // 위험 단계의 어르신은 비활성으로 간주하는 Mock 규칙
+  return elder.status === "DANGER" && elder.elder_id % 2 === 0 ? "비활성" : "활성";
+}
+
+function elderToRosterUser(elder: ApiElder): RosterUser {
+  return {
+    id: elder.elder_id,
+    name: elder.name,
+    initial: elder.name.charAt(0),
+    avatarColor: AVATAR_COLORS[elder.elder_id % AVATAR_COLORS.length],
+    age: elder.age,
+    phone: mockPhone(elder.elder_id),
+    registeredAt: mockRegisteredAt(elder.elder_id),
+    appStatus: mockAppStatus(elder.elder_id),
+    activeStatus: mockActiveStatus(elder),
+  };
+}
 
 const APP_BADGE: Record<AppStatus, string> = {
   완료: "bg-green-100 text-green-600",
@@ -78,8 +77,33 @@ const ACTIVE_BADGE: Record<ActiveStatus, string> = {
 export default function RosterPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [roster, setRoster] = useState<RosterUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const filteredRoster = ROSTER.filter((u) =>
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const elders = await fetchElders();
+        if (!cancelled) {
+          setRoster(elders.map(elderToRosterUser));
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "데이터를 불러올 수 없습니다.");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const filteredRoster = roster.filter((u) =>
     u.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
@@ -96,7 +120,11 @@ export default function RosterPage() {
         <div className="flex justify-between items-center px-6 py-5">
           <div>
             <h2 className="font-bold text-gray-900">담당 목록</h2>
-            <p className="text-xs text-gray-500 mt-0.5">최근 등록 기준 정렬</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              최근 등록 기준 정렬 · 총 {roster.length}명
+              {loading && <span className="ml-2 text-blue-500">불러오는 중…</span>}
+              {error && <span className="ml-2 text-red-500">{error}</span>}
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <input
@@ -175,7 +203,9 @@ export default function RosterPage() {
         </table>
 
         <div className="flex justify-between items-center px-6 py-4 border-t border-gray-100">
-          <p className="text-xs text-gray-500">전체 15개 중 1-4 표시</p>
+          <p className="text-xs text-gray-500">
+            전체 {filteredRoster.length}개 중 1-{filteredRoster.length} 표시
+          </p>
           <div className="flex items-center gap-1">
             <button
               className="px-3 py-1.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50"
