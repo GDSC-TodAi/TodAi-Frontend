@@ -2,26 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { fetchElders, type ApiElder } from "@todai/api";
 
 type AppStatus = "완료" | "미설치";
 type ActiveStatus = "활성" | "비활성";
-
-type ApiGender = "MALE" | "FEMALE";
-type ApiStatus = "DANGER" | "WARNING" | "STABLE";
-
-interface ApiElder {
-  elder_id: number;
-  name: string;
-  age: number;
-  gender: ApiGender;
-  weekly_conv: number;
-  score: number[];
-  status: ApiStatus;
-}
-
-interface ApiResponse {
-  data: ApiElder[];
-}
 
 interface RosterUser {
   id: number;
@@ -101,11 +85,9 @@ export default function RosterPage() {
     let cancelled = false;
     async function load() {
       try {
-        const res = await fetch("/proxy/api/main");
-        if (!res.ok) throw new Error(`API 요청 실패: ${res.status}`);
-        const json = (await res.json()) as ApiResponse;
+        const elders = await fetchElders();
         if (!cancelled) {
-          setRoster((json.data ?? []).map(elderToRosterUser));
+          setRoster(elders.map(elderToRosterUser));
         }
       } catch (err) {
         if (!cancelled) {
